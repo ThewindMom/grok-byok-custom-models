@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${GROK_BYOK_API_KEY:?Set GROK_BYOK_API_KEY to your provider key}"
+
+export GROK_CODE_XAI_API_KEY="${GROK_CODE_XAI_API_KEY:-dummy-local-custom-model-key}"
+export FIREWORKS_API_KEY="$GROK_BYOK_API_KEY"
+export GROK_BYOK_PORT="${GROK_BYOK_PORT:-8795}"
+export GROK_BYOK_PROXY="${GROK_BYOK_PROXY:-$HOME/.grok/proxy.py}"
+
+need_proxy=1
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help|-v|--version|help|version|inspect|models)
+            need_proxy=0
+            ;;
+    esac
+done
+
+start_proxy() {
+    mkdir -p "$HOME/.grok/logs"
+    nohup python3 "$GROK_BYOK_PROXY" "$GROK_BYOK_PORT" \
+        >"$HOME/.grok/logs/byok-proxy-${GROK_BYOK_PORT}.out" \
+        2>"$HOME/.grok/logs/byok-proxy-${GROK_BYOK_PORT}.err" &
+    local pid=$!
+    for _ in {1..30}; do
+        if ss -tln | grep -q "127.0.0.1:${GROK_BYOK_PORT}"; then
+            return 0
+        fi
+        sleep 0.1
+    done
+    echo "Proxy failed to start on port ${GROK_BYOK_PORT} (pid ${pid})" >&2
+    echo "Log: $HOME/.grok/logs/byok-proxy-${GROK_BYOK_PORT}.err" >&2
+    exit 1
+}
+
+if [[ "$need_proxy" == "1" ]] && ! ss -tln | grep -q "127.0.0.1:${GROK_BYOK_PORT}"; then
+    start_proxy
+fi
+
+is_headless=0
+has_approval=0
+has_no_ask_user=0
+for arg in "$@"; do
+    case "$arg" in
+        -p|--single|--prompt-file|--prompt-json) is_headless=1 ;;
+        --always-approve|--permission-mode) has_approval=1 ;;
+        --no-ask-user) has_no_ask_user=1 ;;
+    esac
+done
+
+if [[ "$is_headless" == "1" && "$has_approval" == "0" ]]; then
+    exec grok -m byok --no-plan --always-approve "$@"
+elif [[ "$is_headless" == "0" && "$has_no_ask_user" == "0" ]]; then
+    exec grok -m byok --no-plan --no-ask-user "$@"
+else
+    exec grok -m byok --no-plan "$@"
+fi

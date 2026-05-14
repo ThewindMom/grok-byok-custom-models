@@ -1,0 +1,12 @@
+[model.byok]
+model = "accounts/fireworks/routers/kimi-k2p6-turbo"
+base_url = "http://127.0.0.1:8795"
+name = "BYOK custom model"
+env_key = "FIREWORKS_API_KEY"
+
+[models]
+default = "byok"
+
+[ui]
+max_thoughts_width = 120
+compact_mode = false
