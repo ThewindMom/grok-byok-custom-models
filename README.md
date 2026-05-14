@@ -38,7 +38,7 @@ The proxy fixes request/response incompatibilities:
 | Grok tool schemas can contain `null` values | Strip `null` recursively from tool schemas |
 | TUI needs streamed tokens | Forward SSE chunks line by line |
 | Non-streaming headless calls need stable HTTP/1.1 | Send correct `Content-Length` |
-| Grok 0.1.210 TUI can register `ask_user_question` twice | Wrapper launches TUI with `--no-ask-user` |
+| Grok 0.1.210 TUI/native ask-user can collide internally | Wrapper launches TUI with `--no-ask-user` |
 
 ## Quick start
 
@@ -103,6 +103,7 @@ duplicate client_name "ask_user_question"
 | `GROK_BYOK_PORT` | `8795` | Local proxy port |
 | `GROK_BYOK_PROXY` | `~/.grok/proxy.py` | Proxy path used by wrapper |
 | `GROK_BYOK_PROXY_LOG` | `0` | Enable proxy debug logs |
+| `GROK_BYOK_ENABLE_ASK_USER` | unset | Experimental: set to `1` to stop the wrapper adding `--no-ask-user` |
 | `GROK_CODE_XAI_API_KEY` | `dummy-local-custom-model-key` | Dummy key satisfying Grok's auth gate |
 
 ## Provider notes
@@ -134,6 +135,7 @@ Then update `examples/config.toml` if the Grok config needs a different `env_key
 - xAI-native features still require xAI services.
 - Image/video generation with native Grok models is not covered.
 - Tool calling depends on the upstream model following OpenAI tool-call JSON strictly.
+- Native TUI ask-user is disabled by default because Grok CLI `0.1.210` can collide between the built-in model tool and the TUI extension method. See `docs/grok-0.1.210-notes.md`.
 - `--tools` can break custom-model tool discovery in some Grok versions. Prefer default tools first.
 - Fork/secondary models may still point at `grok-build` unless configured separately.
 
@@ -145,6 +147,14 @@ Use the wrapper, or launch TUI with:
 
 ```bash
 grok -m byok --no-plan --no-ask-user
+```
+
+What this means: Grok CLI `0.1.210` contains both a model-facing GrokBuild tool implementation and a TUI/ACP extension method for the ask-user dialog. The collision happens in Grok's local tool/client registry, before the request reaches the proxy, so `proxy.py` cannot fix it. No config, plugin, MCP server, or marketplace cache entry is required to trigger it.
+
+To retest native ask-user on a future Grok version:
+
+```bash
+GROK_BYOK_ENABLE_ASK_USER=1 grok-byok
 ```
 
 ### Proxy already running on port 8795

@@ -51,7 +51,7 @@ done
 
 if [[ "$is_headless" == "1" && "$has_approval" == "0" ]]; then
     exec grok -m byok --no-plan --always-approve "$@"
-elif [[ "$is_headless" == "0" && "$has_no_ask_user" == "0" ]]; then
+elif [[ "$is_headless" == "0" && "$has_no_ask_user" == "0" && "${GROK_BYOK_ENABLE_ASK_USER:-0}" != "1" ]]; then
     exec grok -m byok --no-plan --no-ask-user "$@"
 else
     exec grok -m byok --no-plan "$@"

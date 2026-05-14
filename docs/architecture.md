@@ -45,7 +45,7 @@ Response behavior:
 3. Starts the proxy if needed.
 4. Runs `grok -m byok --no-plan`.
 5. Adds `--always-approve` for headless prompts unless the caller chose a permission mode.
-6. Adds `--no-ask-user` for TUI mode to avoid the Grok 0.1.210 duplicate `ask_user_question` registration panic.
+6. Adds `--no-ask-user` for TUI mode to avoid the Grok 0.1.210 native ask-user registry collision.
 
 ## Why not call the provider directly from Grok?
 
@@ -75,3 +75,12 @@ The proxy keeps those fixes local and auditable.
 - Headless: working
 - TUI startup: working with `--no-ask-user`
 - SSE streaming: working through proxy
+
+## Native ask-user limitation
+
+Grok CLI `0.1.210` ships both:
+
+- a GrokBuild `ask_user_question` tool implementation for model tool calls
+- an `x.ai/ask_user_question` TUI/ACP extension method for opening the native question dialog
+
+In the BYOK/custom-model TUI path these can collide in Grok's local client-facing tool registry. Because this happens before inference, the proxy cannot fix it. The wrapper disables the native bridge by default with `--no-ask-user`. Set `GROK_BYOK_ENABLE_ASK_USER=1` only when testing a Grok version where the collision may be fixed.
